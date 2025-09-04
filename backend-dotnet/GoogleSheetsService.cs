@@ -716,7 +716,8 @@ public class GoogleSheetsService
 
         // 進度計算
         var actualProgress = totalStoryPoints > 0 ? (completedStoryPoints / totalStoryPoints * 100) : 0;
-        var idealProgress = totalWorkingDays > 0 ? ((double)currentWorkingDay / totalWorkingDays * 100) : 0;
+        // 修正：理想進度應該以實際工作日範圍為準，避免超過100%或Sprint結束後的誤判
+        var idealProgress = totalWorkingDays > 0 ? (Math.Min(currentWorkingDay, totalWorkingDays) / (double)totalWorkingDays * 100) : 0;
 
         // 健康狀態計算 (根據 AC01-AC03)
         var healthStatus = SprintHealthCalculationService.CalculateHealthStatus(actualProgress, idealProgress);
