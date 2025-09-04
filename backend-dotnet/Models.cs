@@ -68,7 +68,39 @@ public record SheetConfigInfo(
     [property: JsonPropertyName("sheet_url")] string SheetUrl
 );
 
-// Sprint Burndown Models
+// Sprint Burndown Models - Enhanced for AC01-04 compliance
+public record SprintInfo(
+    [property: JsonPropertyName("sprint_name")] string SprintName,
+    [property: JsonPropertyName("total_working_days")] int TotalWorkingDays,
+    [property: JsonPropertyName("current_working_day")] int CurrentWorkingDay,
+    [property: JsonPropertyName("total_story_points")] double TotalStoryPoints,
+    [property: JsonPropertyName("completed_story_points")] double CompletedStoryPoints,
+    [property: JsonPropertyName("remaining_story_points")] double RemainingStoryPoints
+);
+
+public record HealthStatus(
+    [property: JsonPropertyName("status")] string Status,        // "normal", "warning", "danger"
+    [property: JsonPropertyName("color")] string Color,          // "#10B981", "#F59E0B", "#EF4444"
+    [property: JsonPropertyName("message")] string Message,      // "正常進度", "稍微落後", "嚴重落後"
+    [property: JsonPropertyName("progress_ratio")] double ProgressRatio
+);
+
+public record DailyProgress(
+    [property: JsonPropertyName("day")] int Day,
+    [property: JsonPropertyName("date")] string Date,
+    [property: JsonPropertyName("ideal_remaining")] double IdealRemaining,
+    [property: JsonPropertyName("actual_remaining")] double? ActualRemaining,  // null for future days
+    [property: JsonPropertyName("is_working_day")] bool IsWorkingDay,
+    [property: JsonPropertyName("is_future")] bool IsFuture
+);
+
+public record SprintBurndownApiResponse(
+    [property: JsonPropertyName("sprint_info")] SprintInfo SprintInfo,
+    [property: JsonPropertyName("daily_progress")] List<DailyProgress> DailyProgress,
+    [property: JsonPropertyName("health_status")] HealthStatus HealthStatus
+);
+
+// Legacy model for backward compatibility
 public record SprintBurndownData(
     [property: JsonPropertyName("sprint_name")] string SprintName,
     [property: JsonPropertyName("total_story_points")] double TotalStoryPoints,
@@ -95,7 +127,7 @@ public record SprintBurndownResponse(
     [property: JsonPropertyName("chart_data")] List<Dictionary<string, object>> ChartData
 );
 
-public record SprintInfo(
+public record SprintInfoDetails(
     [property: JsonPropertyName("sprint_name")] string SprintName,
     [property: JsonPropertyName("sprint_id")] int SprintId,
     [property: JsonPropertyName("board_name")] string BoardName,

@@ -455,7 +455,7 @@ public class GoogleSheetsService
         return records;
     }
 
-    public async Task<SprintInfo> GetSprintInfoAsync(string sprintName)
+    public async Task<SprintInfoDetails> GetSprintInfoAsync(string sprintName)
     {
         var sprintData = await FetchSprintValuesDataAsync();
         var sprintRecord = sprintData.FirstOrDefault(row => 
@@ -467,7 +467,7 @@ public class GoogleSheetsService
             throw new ArgumentException($"Sprint '{sprintName}' not found");
         }
 
-        return new SprintInfo(
+        return new SprintInfoDetails(
             SprintName: sprintRecord["sprint_name"]?.ToString() ?? "",
             SprintId: int.TryParse(sprintRecord["sprint_id"]?.ToString(), out var id) ? id : 0,
             BoardName: sprintRecord["board_name"]?.ToString() ?? "",
@@ -674,5 +674,72 @@ public class GoogleSheetsService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 增強版 Sprint 燃盡圖資料獲取方法
+    /// 符合 AC01-AC04 詳細規格要求
+    /// </summary>
+    /// <param name="sprintName">Sprint 名稱</param>
+    /// <returns>符合 AC01-AC04 規格的燃盡圖資料</returns>
+    public async Task<SprintBurndownApiResponse> GetEnhancedSprintBurndownAsync(string sprintName)
+    {
+        // 獲取 Sprint 基本資訊 
+        var sprintDetails = await GetSprintInfoAsync(sprintName);
+        
+        // 獲取該 Sprint 的所有 Issues
+        var allData = await FetchAndCacheDataAsync();
+        var sprintIssues = allData.Where(row => 
+            row.ContainsKey("sprint") && 
+            row["sprint"]?.ToString() == sprintName).ToList();
+
+        if (!sprintIssues.Any())
+        {
+            throw new ArgumentException($"No issues found for Sprint '{sprintName}'");
+        }
+
+        // 計算基本統計
+        var storyPointsColumn = FindStoryPointsColumn(sprintIssues);
+        var totalStoryPoints = CalculateTotalStoryPoints(sprintIssues, storyPointsColumn);
+        
+        var completedIssues = sprintIssues.Where(row => IsDoneStatus(row)).ToList();
+        var completedStoryPoints = CalculateTotalStoryPoints(completedIssues, storyPointsColumn);
+        var remainingStoryPoints = totalStoryPoints - completedStoryPoints;
+
+        // 時間計算
+        var startDate = sprintDetails.StartDate ?? DateTime.Now.AddDays(-14);
+        var endDate = sprintDetails.EndDate ?? DateTime.Now;
+        var currentDate = DateTime.Now;
+
+        var totalWorkingDays = SprintHealthCalculationService.CalculateWorkingDays(startDate, endDate);
+        var currentWorkingDay = SprintHealthCalculationService.GetCurrentWorkingDay(startDate, currentDate);
+
+        // 進度計算
+        var actualProgress = totalStoryPoints > 0 ? (completedStoryPoints / totalStoryPoints * 100) : 0;
+        var idealProgress = totalWorkingDays > 0 ? ((double)currentWorkingDay / totalWorkingDays * 100) : 0;
+
+        // 健康狀態計算 (根據 AC01-AC03)
+        var healthStatus = SprintHealthCalculationService.CalculateHealthStatus(actualProgress, idealProgress);
+
+        // 生成每日進度資料 (符合 AC04)
+        var dailyProgress = SprintHealthCalculationService.GenerateBurndownData(
+            startDate, endDate, currentDate, totalStoryPoints, sprintIssues, storyPointsColumn ?? "Story Points"
+        );
+
+        // 建立 Sprint 資訊物件
+        var sprintInfo = new SprintInfo(
+            SprintName: sprintName,
+            TotalWorkingDays: totalWorkingDays,
+            CurrentWorkingDay: currentWorkingDay,
+            TotalStoryPoints: Math.Round(totalStoryPoints, 2),
+            CompletedStoryPoints: Math.Round(completedStoryPoints, 2),
+            RemainingStoryPoints: Math.Round(remainingStoryPoints, 2)
+        );
+
+        return new SprintBurndownApiResponse(
+            SprintInfo: sprintInfo,
+            DailyProgress: dailyProgress,
+            HealthStatus: healthStatus
+        );
     }
 }

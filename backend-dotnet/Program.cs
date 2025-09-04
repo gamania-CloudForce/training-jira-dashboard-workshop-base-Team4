@@ -124,6 +124,24 @@ app.MapGet("/api/sprint/burndown/{sprintName}", async (string sprintName, Google
     }
 });
 
+// Enhanced Sprint Burndown API endpoint for AC01-04 compliance
+app.MapGet("/api/dashboard/sprint-burndown/{sprintName}", async (string sprintName, GoogleSheetsService sheetsService) =>
+{
+    try
+    {
+        var enhancedBurndownData = await sheetsService.GetEnhancedSprintBurndownAsync(sprintName);
+        return Results.Ok(enhancedBurndownData);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Failed to get enhanced sprint burndown data: {ex.Message}");
+    }
+});
+
 app.MapGet("/api/sprint/info/{sprintName}", async (string sprintName, GoogleSheetsService sheetsService) =>
 {
     try
